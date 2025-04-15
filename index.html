@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preference Ranker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Apply Inter font globally */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Basic transition for smoother hover effects */
+        .choice-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .choice-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div id="choice-section" class="w-full max-w-4xl text-center">
+        <h1 class="text-2xl md:text-3xl font-bold mb-2 text-gray-800">Which one do you prefer?</h1>
+        <p id="progress-text" class="text-gray-600 mb-6">Choose the card you like more.</p>
+        <div class="flex flex-col md:flex-row justify-center items-stretch gap-6 md:gap-10">
+
+            <div id="card-left" class="choice-card bg-white rounded-lg shadow-md overflow-hidden cursor-pointer flex-1 flex flex-col">
+                <img id="img-left" src="https://placehold.co/600x400/cccccc/ffffff?text=Loading..." alt="Left Choice Image" class="w-full h-48 md:h-64 object-cover" onerror="this.onerror=null; this.src='https://placehold.co/600x400/f87171/ffffff?text=Image+Error';">
+                <div class="p-4 flex-grow flex flex-col justify-between">
+                    <h2 id="title-left" class="text-xl font-semibold mb-2 text-gray-700">Loading...</h2>
+                    <p id="desc-left" class="text-gray-500 text-sm">Loading description...</p>
+                </div>
+            </div>
+
+            <div id="card-right" class="choice-card bg-white rounded-lg shadow-md overflow-hidden cursor-pointer flex-1 flex flex-col">
+                <img id="img-right" src="https://placehold.co/600x400/cccccc/ffffff?text=Loading..." alt="Right Choice Image" class="w-full h-48 md:h-64 object-cover" onerror="this.onerror=null; this.src='https://placehold.co/600x400/f87171/ffffff?text=Image+Error';">
+                <div class="p-4 flex-grow flex flex-col justify-between">
+                    <h2 id="title-right" class="text-xl font-semibold mb-2 text-gray-700">Loading...</h2>
+                    <p id="desc-right" class="text-gray-500 text-sm">Loading description...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="results-section" class="w-full max-w-4xl text-center hidden mt-10">
+        <h1 class="text-2xl md:text-3xl font-bold mb-6 text-gray-800">Your Preference Ranking</h1>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+             <h2 class="text-xl font-semibold mb-4 text-gray-700">Top 10 Preferences</h2>
+            <canvas id="ranking-chart"></canvas>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+             <h2 class="text-xl font-semibold mb-4 text-gray-700">Detailed Ranking</h2>
+            <div class="overflow-x-auto">
+                <table id="ranking-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
