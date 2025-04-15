@@ -1,8 +1,8 @@
 // script.js
 
 // --- Global Data Variable ---
-// This will be populated from the CSV file
 let loadedData = [];
+let inputFilename = 'ranking_data.csv'; // Default filename if not loaded from file
 
 // --- State Variables ---
 let remainingPairs = [];
@@ -10,6 +10,7 @@ let currentPair = null;
 let scores = {};
 let totalComparisons = 0;
 let comparisonsMade = 0;
+let currentRankedItems = []; // Store the latest ranked results
 
 // --- DOM Elements ---
 const fileUploadSection = document.getElementById('file-upload-section');
@@ -30,93 +31,15 @@ const descRight = document.getElementById('desc-right');
 const rankingChartCanvas = document.getElementById('ranking-chart');
 const rankingTableBody = document.querySelector('#ranking-table tbody');
 const progressText = document.getElementById('progress-text');
-const resetButton = document.getElementById('reset-button'); // Get reset button
+const resetButton = document.getElementById('reset-button');
+const saveResultsButton = document.getElementById('save-results-button'); // Get save button
 
 // --- Constants for CSV Parsing ---
 const REQUIRED_HEADERS = ['id', 'title', 'description', 'imageUrl'];
 
 // --- Functions ---
 
-/**
- * Basic CSV Parser
- * Assumes comma delimiter and double quotes for fields containing commas.
- * First row must be headers.
- * @param {string} csvText - The raw CSV text content.
- * @returns {Array|null} Parsed data as an array of objects, or null on error.
- */
-function parseCSV(csvText) {
-    try {
-        const lines = csvText.trim().split('\n');
-        if (lines.length < 2) {
-            throw new Error("CSV must have a header row and at least one data row.");
-        }
-
-        // Extract headers, trim whitespace
-        const headers = lines[0].split(',').map(h => h.trim());
-
-        // Validate headers
-        const missingHeaders = REQUIRED_HEADERS.filter(h => !headers.includes(h));
-        if (missingHeaders.length > 0) {
-            throw new Error(`Missing required CSV headers: ${missingHeaders.join(', ')}`);
-        }
-
-        const data = [];
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue; // Skip empty lines
-
-            // Basic handling for quoted commas (can be improved for more complex CSVs)
-            const values = [];
-            let currentVal = '';
-            let inQuotes = false;
-            for (let char of line) {
-                if (char === '"') {
-                    inQuotes = !inQuotes;
-                } else if (char === ',' && !inQuotes) {
-                    values.push(currentVal.trim().replace(/^"|"$/g, '')); // Remove surrounding quotes
-                    currentVal = '';
-                } else {
-                    currentVal += char;
-                }
-            }
-            values.push(currentVal.trim().replace(/^"|"$/g, '')); // Add the last value
-
-            if (values.length !== headers.length) {
-                 console.warn(`Row ${i + 1} has incorrect number of columns. Skipping.`);
-                 continue; // Skip rows with mismatched columns
-            }
-
-            const rowObject = {};
-            headers.forEach((header, index) => {
-                 // Ensure ID is treated as a number if possible, otherwise string
-                 if (header === 'id') {
-                     rowObject[header] = !isNaN(parseInt(values[index])) ? parseInt(values[index]) : values[index];
-                 } else {
-                    rowObject[header] = values[index];
-                 }
-            });
-            data.push(rowObject);
-        }
-
-        // Check for duplicate IDs
-        const ids = new Set();
-        for (const item of data) {
-            if (ids.has(item.id)) {
-                 throw new Error(`Duplicate ID found in CSV: ${item.id}`);
-            }
-            ids.add(item.id);
-        }
-
-
-        return data;
-    } catch (error) {
-        console.error("CSV Parsing Error:", error);
-        loadingStatus.textContent = `Error parsing CSV: ${error.message}`;
-        loadingStatus.classList.add('text-red-500');
-        return null;
-    }
-}
-
+// ...(Keep existing parseCSV, generatePairs, shuffleArray, initializeScores, updateCards, displayNextPair, updateProgress, handleChoice)...
 
 /**
  * Handles the file selection and loading process.
@@ -129,16 +52,19 @@ function handleFileLoad() {
         return;
     }
 
-    if (!file.name.toLowerCase().endsWith('.csv')) {
+     if (!file.name.toLowerCase().endsWith('.csv')) {
         loadingStatus.textContent = "Please select a valid CSV file (.csv extension).";
         loadingStatus.classList.add('text-red-500');
         csvFileInput.value = ''; // Reset file input
         return;
     }
 
+    // *** Store the input filename ***
+    inputFilename = file.name;
+
     loadingStatus.textContent = "Loading and parsing file...";
     loadingStatus.classList.remove('text-red-500', 'text-green-500');
-    loadCsvButton.disabled = true; // Disable button while loading
+    loadCsvButton.disabled = true;
 
     const reader = new FileReader();
 
@@ -147,274 +73,159 @@ function handleFileLoad() {
         const parsedData = parseCSV(csvText);
 
         if (parsedData && parsedData.length >= 2) {
-            loadedData = parsedData; // Store parsed data globally
-            loadingStatus.textContent = `Successfully loaded ${loadedData.length} items. Starting ranking...`;
+            loadedData = parsedData;
+            loadingStatus.textContent = `Successfully loaded ${loadedData.length} items from ${inputFilename}. Starting ranking...`;
             loadingStatus.classList.add('text-green-500');
-            // Hide file upload, show choices
             fileUploadSection.style.opacity = '0';
             setTimeout(() => {
                  fileUploadSection.style.display = 'none';
-                 choiceSection.style.display = 'block'; // Or 'flex' if needed by layout
-                 setTimeout(() => choiceSection.classList.add('visible'), 50); // Fade in
-                 startRankingProcess(loadedData); // Start the ranking logic
-            }, 500); // Wait for fade out transition
+                 choiceSection.style.display = 'block';
+                 setTimeout(() => choiceSection.classList.add('visible'), 50);
+                 startRankingProcess(loadedData);
+            }, 500);
 
         } else if (parsedData && parsedData.length < 2) {
             loadingStatus.textContent = "CSV loaded, but needs at least 2 items to rank.";
             loadingStatus.classList.add('text-red-500');
-            loadCsvButton.disabled = false; // Re-enable button
-             csvFileInput.value = ''; // Reset file input
+            loadCsvButton.disabled = false;
+            csvFileInput.value = '';
+            inputFilename = 'ranking_data.csv'; // Reset filename
 
         } else {
-            // Error message already set by parseCSV
-             loadCsvButton.disabled = false; // Re-enable button
-             csvFileInput.value = ''; // Reset file input
+            loadCsvButton.disabled = false;
+            csvFileInput.value = '';
+             inputFilename = 'ranking_data.csv'; // Reset filename
         }
     };
 
     reader.onerror = function() {
         loadingStatus.textContent = "Error reading the file.";
         loadingStatus.classList.add('text-red-500');
-        loadCsvButton.disabled = false; // Re-enable button
-        csvFileInput.value = ''; // Reset file input
+        loadCsvButton.disabled = false;
+        csvFileInput.value = '';
+        inputFilename = 'ranking_data.csv'; // Reset filename
     };
 
     reader.readAsText(file);
 }
 
-
-/**
- * Starts the ranking process after data is loaded.
- * @param {Array} dataItems - The array of data items loaded from CSV.
- */
-function startRankingProcess(dataItems) {
-    // Reset state variables for ranking
-    remainingPairs = [];
-    currentPair = null;
-    scores = {};
-    totalComparisons = 0;
-    comparisonsMade = 0;
-
-    // 1. Initialize scores
-    initializeScores(dataItems);
-
-    // 2. Generate and shuffle pairs
-    remainingPairs = generatePairs(dataItems);
-    shuffleArray(remainingPairs);
-    totalComparisons = remainingPairs.length;
-
-    if (totalComparisons === 0) {
-        // Should have been caught earlier, but double-check
-        choiceSection.innerHTML = '<p class="text-yellow-500 text-center">Not enough unique pairs to compare.</p>';
-        return;
-    }
-
-    // 3. Display the first pair
-    displayNextPair();
-}
-
-
-// --- (Keep Existing Functions: generatePairs, shuffleArray, initializeScores, updateCards, displayNextPair, updateProgress, handleChoice, displayResults, displayChart, displayTable) ---
-// Make sure these functions now use `loadedData` when they need the full list, e.g., in displayResults.
-
-/**
- * Generates all unique pairs of items from the data array.
- * @param {Array} items - The array of data items.
- * @returns {Array} An array of pairs, e.g., [[item1, item2], [item1, item3], ...]
- */
-function generatePairs(items) {
-    const pairs = [];
-    if (items.length < 2) return pairs; // Need at least two items to form a pair
-
-    for (let i = 0; i < items.length; i++) {
-        for (let j = i + 1; j < items.length; j++) {
-            pairs.push([items[i], items[j]]);
-        }
-    }
-    return pairs;
-}
-
-/**
- * Shuffles an array in place using the Fisher-Yates algorithm.
- * @param {Array} array - The array to shuffle.
- */
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]]; // Swap elements
-    }
-}
-
-/**
- * Initializes the scores for all items to zero.
- * @param {Array} items - The array of data items.
- */
-function initializeScores(items) {
-    scores = {}; // Reset scores
-    items.forEach(item => {
-        scores[item.id] = 0;
-    });
-}
-
-/**
- * Updates the content of the choice cards.
- * @param {Object} itemLeft - The item for the left card.
- * @param {Object} itemRight - The item for the right card.
- */
-function updateCards(itemLeft, itemRight) {
-    // Update Left Card
-    imgLeft.src = itemLeft.imageUrl;
-    imgLeft.alt = itemLeft.title;
-    titleLeft.textContent = itemLeft.title;
-    descLeft.textContent = itemLeft.description || ''; // Handle optional description
-
-    // Update Right Card
-    imgRight.src = itemRight.imageUrl;
-    imgRight.alt = itemRight.title;
-    titleRight.textContent = itemRight.title;
-    descRight.textContent = itemRight.description || ''; // Handle optional description
-
-    // Store the item IDs in the card elements for easy access on click
-    cardLeft.dataset.itemId = itemLeft.id;
-    cardRight.dataset.itemId = itemRight.id;
-}
-
-/**
- * Displays the next pair of choices or triggers the results display.
- */
-function displayNextPair() {
-    if (remainingPairs.length > 0) {
-        currentPair = remainingPairs.pop(); // Get the next pair from the shuffled list
-        // Randomly assign to left/right card
-        if (Math.random() > 0.5) {
-             updateCards(currentPair[0], currentPair[1]);
-        } else {
-             updateCards(currentPair[1], currentPair[0]);
-        }
-        updateProgress();
-    } else {
-        // No more pairs left, show results
-        displayResults();
-    }
-}
-
-/**
- * Updates the progress text.
- */
-function updateProgress() {
-    comparisonsMade++;
-    progressText.textContent = `Choice ${comparisonsMade} of ${totalComparisons}`;
-}
-
-
-/**
- * Handles the click event on a choice card.
- * @param {Event} event - The click event object.
- */
-function handleChoice(event) {
-    const clickedCard = event.target.closest('.choice-card');
-    if (!clickedCard) return;
-
-    const chosenItemId = parseInt(clickedCard.dataset.itemId, 10);
-    // Find the actual item object that was chosen (needed if ID isn't just a number, though it should be)
-    // let chosenItem = null;
-    // if (currentPair[0].id === chosenItemId) chosenItem = currentPair[0];
-    // else if (currentPair[1].id === chosenItemId) chosenItem = currentPair[1];
-
-    // Increment the score of the chosen item using its ID
-    if (scores.hasOwnProperty(chosenItemId)) {
-         scores[chosenItemId]++;
-    } else {
-         console.warn(`Chosen item ID ${chosenItemId} not found in scores.`);
-    }
-
-
-    // Display the next pair
-    displayNextPair();
-}
+// ...(Keep startRankingProcess)...
 
 /**
  * Calculates the ranking based on scores and displays the results.
  */
 function displayResults() {
-    // Hide choice section, show results section
     choiceSection.classList.remove('visible');
-    choiceSection.style.display = 'none'; // Hide completely
-    resultsSection.style.display = 'block'; // Show results section container
-    setTimeout(() => resultsSection.classList.add('visible'), 50); // Fade in results
+    choiceSection.style.display = 'none';
+    resultsSection.style.display = 'block';
+    setTimeout(() => resultsSection.classList.add('visible'), 50);
 
-    // Calculate ranked list using the originally loaded data
     const rankedItems = loadedData
         .map(item => ({
             ...item,
-            score: scores[item.id] || 0 // Get score based on ID
+            score: scores[item.id] || 0
         }))
-        .sort((a, b) => b.score - a.score); // Sort descending by score
+        .sort((a, b) => b.score - a.score);
 
-    // Display Chart (Top 10)
-    displayChart(rankedItems.slice(0, 10));
+    // *** Store ranked items for saving ***
+    currentRankedItems = rankedItems.map((item, index) => ({
+        rank: index + 1, // Add rank directly to the object
+        ...item
+    }));
 
-    // Display Table (All items)
-    displayTable(rankedItems);
+
+    displayChart(currentRankedItems.slice(0, 10));
+    displayTable(currentRankedItems);
+
+    // *** Enable the save button ***
+    saveResultsButton.disabled = false;
 }
 
-/**
- * Displays the ranking chart using Chart.js.
- * @param {Array} topItems - Array of the top-ranked items (up to 10).
- */
-function displayChart(topItems) {
-    const ctx = rankingChartCanvas.getContext('2d');
+// ...(Keep displayChart, displayTable)...
 
-    if (window.myRankingChart instanceof Chart) {
-        window.myRankingChart.destroy();
+/**
+ * Escapes a value for CSV format. Wraps in quotes if it contains comma, newline or quote.
+ * Escapes existing quotes by doubling them.
+ * @param {*} value - The value to escape.
+ * @returns {string} - The CSV-safe string.
+ */
+function escapeCsvValue(value) {
+    const stringValue = String(value == null ? "" : value); // Handle null/undefined
+    if (/[",\n]/.test(stringValue)) {
+        // Needs quoting
+        return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+}
+
+
+/**
+ * Generates CSV content string from ranked data.
+ * @param {Array} rankedItemsWithRank - Array of items including rank property.
+ * @returns {string} - The CSV content as a string.
+ */
+function generateRankedCSV(rankedItemsWithRank) {
+    if (!rankedItemsWithRank || rankedItemsWithRank.length === 0) {
+        return ""; // Return empty string if no data
     }
 
-    window.myRankingChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: topItems.map(item => item.title),
-            datasets: [{
-                label: 'Preference Score',
-                data: topItems.map(item => item.score),
-                backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { beginAtZero: true, title: { display: true, text: 'Score' } },
-                y: { title: { display: true, text: 'Item' } }
-            }
-        }
+    // Define headers - explicitly include 'rank'
+    const headers = ['rank', 'id', 'title', 'score', 'description', 'imageUrl'];
+    const csvRows = [headers.join(',')]; // Header row
+
+    // Create data rows
+    rankedItemsWithRank.forEach(item => {
+        const row = headers.map(header => escapeCsvValue(item[header]));
+        csvRows.push(row.join(','));
     });
-    const chartContainer = rankingChartCanvas.parentElement;
-    const itemHeight = 40;
-    const minHeight = 200;
-    chartContainer.style.height = `${Math.max(minHeight, topItems.length * itemHeight)}px`;
-    window.myRankingChart.resize();
+
+    return csvRows.join('\n'); // Join all rows with newline characters
 }
 
 /**
- * Populates the ranking table with all ranked items.
- * @param {Array} rankedItems - Array of all items sorted by score.
+ * Triggers the download of a CSV file.
+ * @param {string} csvContent - The content of the CSV file.
+ * @param {string} filename - The desired name for the downloaded file.
  */
-function displayTable(rankedItems) {
-    rankingTableBody.innerHTML = '';
-    rankedItems.forEach((item, index) => {
-        const rank = index + 1;
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" data-label="Rank">${rank}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700" data-label="Item">${item.title}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Score">${item.score}</td>
-        `;
-        rankingTableBody.appendChild(row);
-    });
+function downloadCSV(csvContent, filename) {
+    // Create a Blob (Binary Large Object) from the CSV content
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    // Create a temporary link element
+    const link = document.createElement("a");
+
+    // Create a URL for the Blob
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename); // Set the download attribute
+
+    // Append the link to the body (required for Firefox), click it, and remove it
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Optional: Revoke the object URL to free up memory, though modern browsers often handle this.
+    // URL.revokeObjectURL(url);
+}
+
+/**
+ * Handles the click event for the Save Results button.
+ */
+function handleSaveResults() {
+    if (currentRankedItems.length === 0) {
+        console.warn("No ranked items available to save.");
+        return;
+    }
+
+    // Generate CSV content
+    const csvData = generateRankedCSV(currentRankedItems);
+
+    // Determine filename
+    const outputFilename = `fav-${inputFilename}`; // Prefix input filename
+
+    // Trigger download
+    downloadCSV(csvData, outputFilename);
 }
 
 
@@ -422,7 +233,6 @@ function displayTable(rankedItems) {
  * Resets the application to the initial file selection state.
  */
 function resetApplication() {
-    // Fade out results
     resultsSection.classList.remove('visible');
     setTimeout(() => {
         resultsSection.style.display = 'none';
@@ -431,41 +241,173 @@ function resetApplication() {
         rankingTableBody.innerHTML = '';
         if (window.myRankingChart instanceof Chart) {
             window.myRankingChart.destroy();
+            window.myRankingChart = null; // Clear reference
         }
         loadedData = [];
         remainingPairs = [];
         currentPair = null;
         scores = {};
-        csvFileInput.value = ''; // Clear file input
+        currentRankedItems = []; // Clear saved ranks
+        csvFileInput.value = '';
         loadingStatus.textContent = '';
         loadingStatus.classList.remove('text-red-500', 'text-green-500');
         loadCsvButton.disabled = false;
+        saveResultsButton.disabled = true; // *** Disable save button on reset ***
+        inputFilename = 'ranking_data.csv'; // Reset default filename
 
          // Fade in file upload section
          fileUploadSection.style.display = 'block';
          setTimeout(() => fileUploadSection.style.opacity = '1', 50);
 
-
-    }, 500); // Wait for fade out
-
+    }, 500);
 }
 
 
-// --- Initialization ---
-
+/**
+ * Sets up the initial page state and event listeners.
+ */
 function initializePage() {
     // Add event listeners
     loadCsvButton.addEventListener('click', handleFileLoad);
     cardLeft.addEventListener('click', handleChoice);
     cardRight.addEventListener('click', handleChoice);
-    resetButton.addEventListener('click', resetApplication); // Add listener for reset
+    resetButton.addEventListener('click', resetApplication);
+    saveResultsButton.addEventListener('click', handleSaveResults); // *** Add listener for save ***
 
-    // Initial state: show only file upload
+    // Initial state: show only file upload, disable save button
     fileUploadSection.style.display = 'block';
     fileUploadSection.style.opacity = '1';
     choiceSection.style.display = 'none';
     resultsSection.style.display = 'none';
+    saveResultsButton.disabled = true; // Ensure it starts disabled
 }
 
 // --- Start the application ---
 document.addEventListener('DOMContentLoaded', initializePage);
+
+
+// --- Helper Functions (Keep unchanged) ---
+// parseCSV, generatePairs, shuffleArray, initializeScores, updateCards,
+// displayNextPair, updateProgress, handleChoice, displayChart, displayTable
+// (Make sure parseCSV, initializeScores, updateCards, displayNextPair,
+// handleChoice, displayChart, displayTable are present from previous steps)
+
+// --- Re-include necessary helper functions if they were removed ---
+
+function parseCSV(csvText) {
+    try {
+        const lines = csvText.trim().split('\n');
+        if (lines.length < 2) throw new Error("CSV must have a header row and at least one data row.");
+        const headers = lines[0].split(',').map(h => h.trim());
+        const missingHeaders = REQUIRED_HEADERS.filter(h => !headers.includes(h));
+        if (missingHeaders.length > 0) throw new Error(`Missing required CSV headers: ${missingHeaders.join(', ')}`);
+
+        const data = [];
+        const ids = new Set();
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            const values = [];
+            let currentVal = '';
+            let inQuotes = false;
+            for (let char of line) {
+                if (char === '"') inQuotes = !inQuotes;
+                else if (char === ',' && !inQuotes) {
+                    values.push(currentVal.trim().replace(/^"|"$/g, '')); currentVal = '';
+                } else currentVal += char;
+            }
+            values.push(currentVal.trim().replace(/^"|"$/g, ''));
+            if (values.length !== headers.length) { console.warn(`Row ${i + 1} has incorrect number of columns. Skipping.`); continue; }
+            const rowObject = {};
+            headers.forEach((header, index) => {
+                 if (header === 'id') rowObject[header] = !isNaN(parseInt(values[index])) ? parseInt(values[index]) : values[index];
+                 else rowObject[header] = values[index];
+            });
+             if (ids.has(rowObject.id)) throw new Error(`Duplicate ID found in CSV: ${rowObject.id}`);
+             ids.add(rowObject.id);
+            data.push(rowObject);
+        }
+        return data;
+    } catch (error) {
+        console.error("CSV Parsing Error:", error);
+        loadingStatus.textContent = `Error parsing CSV: ${error.message}`;
+        loadingStatus.classList.add('text-red-500');
+        return null;
+    }
+}
+
+function generatePairs(items) {
+    const pairs = [];
+    if (items.length < 2) return pairs;
+    for (let i = 0; i < items.length; i++) {
+        for (let j = i + 1; j < items.length; j++) pairs.push([items[i], items[j]]);
+    } return pairs;
+}
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+function initializeScores(items) {
+    scores = {}; items.forEach(item => { scores[item.id] = 0; });
+}
+
+function updateCards(itemLeft, itemRight) {
+    imgLeft.src = itemLeft.imageUrl; imgLeft.alt = itemLeft.title; titleLeft.textContent = itemLeft.title; descLeft.textContent = itemLeft.description || '';
+    imgRight.src = itemRight.imageUrl; imgRight.alt = itemRight.title; titleRight.textContent = itemRight.title; descRight.textContent = itemRight.description || '';
+    cardLeft.dataset.itemId = itemLeft.id; cardRight.dataset.itemId = itemRight.id;
+}
+
+function displayNextPair() {
+    if (remainingPairs.length > 0) {
+        currentPair = remainingPairs.pop();
+        if (Math.random() > 0.5) updateCards(currentPair[0], currentPair[1]);
+        else updateCards(currentPair[1], currentPair[0]);
+        updateProgress();
+    } else displayResults();
+}
+
+function updateProgress() {
+    comparisonsMade++; progressText.textContent = `Choice ${comparisonsMade} of ${totalComparisons}`;
+}
+
+function handleChoice(event) {
+    const clickedCard = event.target.closest('.choice-card'); if (!clickedCard) return;
+    const chosenItemId = parseInt(clickedCard.dataset.itemId, 10);
+    if (scores.hasOwnProperty(chosenItemId)) scores[chosenItemId]++;
+    else console.warn(`Chosen item ID ${chosenItemId} not found in scores.`);
+    displayNextPair();
+}
+
+function displayChart(topItems) {
+    const ctx = rankingChartCanvas.getContext('2d');
+    if (window.myRankingChart instanceof Chart) window.myRankingChart.destroy();
+    window.myRankingChart = new Chart(ctx, { /* ... chart config ... */
+         type: 'bar', data: { labels: topItems.map(item => item.title), datasets: [{ label: 'Preference Score', data: topItems.map(item => item.score), backgroundColor: 'rgba(54, 162, 235, 0.6)', borderColor: 'rgba(54, 162, 235, 1)', borderWidth: 1 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, title: { display: true, text: 'Score' } }, y: { title: { display: true, text: 'Item' } } } }
+    });
+    const chartContainer = rankingChartCanvas.parentElement; const itemHeight = 40; const minHeight = 200; chartContainer.style.height = `${Math.max(minHeight, topItems.length * itemHeight)}px`; window.myRankingChart.resize();
+}
+
+function displayTable(rankedItems) {
+    rankingTableBody.innerHTML = '';
+    rankedItems.forEach((item) => { // Rank is already in item object
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" data-label="Rank">${item.rank}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700" data-label="Item">${item.title}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" data-label="Score">${item.score}</td>
+        `;
+        rankingTableBody.appendChild(row);
+    });
+}
+
+function startRankingProcess(dataItems) {
+    remainingPairs = []; currentPair = null; scores = {}; totalComparisons = 0; comparisonsMade = 0;
+    initializeScores(dataItems);
+    remainingPairs = generatePairs(dataItems); shuffleArray(remainingPairs); totalComparisons = remainingPairs.length;
+    if (totalComparisons === 0) { choiceSection.innerHTML = '<p class="text-yellow-500 text-center">Not enough unique pairs to compare.</p>'; return; }
+    displayNextPair();
+}

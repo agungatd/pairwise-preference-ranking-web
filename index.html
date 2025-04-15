@@ -85,9 +85,14 @@
                 </table>
             </div>
         </div>
-         <button id="reset-button" class="mt-8 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-            Rank Again (Choose New File)
-        </button>
+        <div class="mt-8 flex flex-col sm:flex-row justify-center gap-4">
+            <button id="save-results-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Save Results as CSV
+            </button>
+            <button id="reset-button" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                Rank Again (Choose New File)
+            </button>
+        </div>
     </div>
 
     <script src="script.js"></script>
