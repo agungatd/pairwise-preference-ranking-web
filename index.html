@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Preference Ranker</title>
+    <title>Preference Ranker (from CSV)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -11,27 +11,41 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Apply Inter font globally */
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Basic transition for smoother hover effects */
-        .choice-card {
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-        .choice-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
+        body { font-family: 'Inter', sans-serif; }
+        .choice-card { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .choice-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        /* Add styles for file input area */
+        #file-upload-section { transition: opacity 0.5s ease-out; }
+        /* Hide elements initially */
+        #choice-section, #results-section { display: none; opacity: 0; transition: opacity 0.5s ease-in; }
+        #choice-section.visible, #results-section.visible { display: block; opacity: 1; } /* Use block or flex depending on layout */
+        #choice-section.visible { display: block; } /* Adjust if flex needed */
+        #results-section.visible { display: block; }
+
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div id="file-upload-section" class="w-full max-w-md bg-white p-8 rounded-lg shadow-md text-center">
+        <h1 class="text-2xl font-bold mb-4 text-gray-800">Load Your Data</h1>
+        <p class="text-gray-600 mb-6">Select a CSV file with columns: <code class="bg-gray-200 px-1 rounded text-sm">id,title,description,imageUrl</code></p>
+        <input type="file" id="csv-file-input" accept=".csv" class="block w-full text-sm text-gray-500
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-full file:border-0
+            file:text-sm file:font-semibold
+            file:bg-blue-50 file:text-blue-700
+            hover:file:bg-blue-100 mb-4
+        "/>
+        <button id="load-csv-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed">
+            Load and Start Ranking
+        </button>
+        <p id="loading-status" class="mt-4 text-sm text-gray-500"></p>
+    </div>
 
     <div id="choice-section" class="w-full max-w-4xl text-center">
         <h1 class="text-2xl md:text-3xl font-bold mb-2 text-gray-800">Which one do you prefer?</h1>
         <p id="progress-text" class="text-gray-600 mb-6">Choose the card you like more.</p>
         <div class="flex flex-col md:flex-row justify-center items-stretch gap-6 md:gap-10">
-
             <div id="card-left" class="choice-card bg-white rounded-lg shadow-md overflow-hidden cursor-pointer flex-1 flex flex-col">
                 <img id="img-left" src="https://placehold.co/600x400/cccccc/ffffff?text=Loading..." alt="Left Choice Image" class="w-full h-48 md:h-64 object-cover" onerror="this.onerror=null; this.src='https://placehold.co/600x400/f87171/ffffff?text=Image+Error';">
                 <div class="p-4 flex-grow flex flex-col justify-between">
@@ -39,9 +53,8 @@
                     <p id="desc-left" class="text-gray-500 text-sm">Loading description...</p>
                 </div>
             </div>
-
             <div id="card-right" class="choice-card bg-white rounded-lg shadow-md overflow-hidden cursor-pointer flex-1 flex flex-col">
-                <img id="img-right" src="https://placehold.co/600x400/cccccc/ffffff?text=Loading..." alt="Right Choice Image" class="w-full h-48 md:h-64 object-cover" onerror="this.onerror=null; this.src='https://placehold.co/600x400/f87171/ffffff?text=Image+Error';">
+                 <img id="img-right" src="https://placehold.co/600x400/cccccc/ffffff?text=Loading..." alt="Right Choice Image" class="w-full h-48 md:h-64 object-cover" onerror="this.onerror=null; this.src='https://placehold.co/600x400/f87171/ffffff?text=Image+Error';">
                 <div class="p-4 flex-grow flex flex-col justify-between">
                     <h2 id="title-right" class="text-xl font-semibold mb-2 text-gray-700">Loading...</h2>
                     <p id="desc-right" class="text-gray-500 text-sm">Loading description...</p>
@@ -50,14 +63,12 @@
         </div>
     </div>
 
-    <div id="results-section" class="w-full max-w-4xl text-center hidden mt-10">
+    <div id="results-section" class="w-full max-w-4xl text-center mt-10">
         <h1 class="text-2xl md:text-3xl font-bold mb-6 text-gray-800">Your Preference Ranking</h1>
-
         <div class="bg-white p-6 rounded-lg shadow-md mb-8">
              <h2 class="text-xl font-semibold mb-4 text-gray-700">Top 10 Preferences</h2>
             <canvas id="ranking-chart"></canvas>
         </div>
-
         <div class="bg-white p-6 rounded-lg shadow-md">
              <h2 class="text-xl font-semibold mb-4 text-gray-700">Detailed Ranking</h2>
             <div class="overflow-x-auto">
@@ -74,6 +85,9 @@
                 </table>
             </div>
         </div>
+         <button id="reset-button" class="mt-8 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+            Rank Again (Choose New File)
+        </button>
     </div>
 
     <script src="script.js"></script>

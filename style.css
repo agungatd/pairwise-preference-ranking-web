@@ -3,22 +3,22 @@
 /* Although we are using Tailwind primarily, you can add custom CSS rules here if needed. */
 /* For example, specific animations or styles not easily achievable with Tailwind classes. */
 
-body {
+/* body {
     /* You can set a default background or font here if not using Tailwind body classes */
-    /* font-family: 'Inter', sans-serif; /* Example if not set via <style> tag */
-}
+    /* font-family: 'Inter', sans-serif; /* Example if not set via <style> tag
+} */
 
 /* Add any additional custom styles below */
 
 /* Example: Add a subtle pulse animation to the cards on load */
-/* @keyframes pulse {
+@keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: .9; }
 }
 
 .choice-card {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-} */
+}
 
 /* Ensure chart container has relative positioning for responsiveness */
 #ranking-chart-container {
