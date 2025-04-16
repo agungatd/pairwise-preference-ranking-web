@@ -32,7 +32,7 @@ const rankingChartCanvas = document.getElementById('ranking-chart');
 const rankingTableBody = document.querySelector('#ranking-table tbody');
 const progressText = document.getElementById('progress-text');
 const resetButton = document.getElementById('reset-button');
-const saveResultsButton = document.getElementById('save-results-button'); // Get save button
+const saveResultsButton = document.getElementById('save-results-button');
 
 // --- Constants for CSV Parsing ---
 const REQUIRED_HEADERS = ['id', 'title', 'description', 'imageUrl'];
@@ -340,8 +340,11 @@ function generatePairs(items) {
     const pairs = [];
     if (items.length < 2) return pairs;
     for (let i = 0; i < items.length; i++) {
-        for (let j = i + 1; j < items.length; j++) pairs.push([items[i], items[j]]);
-    } return pairs;
+        for (let j = i + 1; j < items.length; j++) {
+            pairs.push([items[i], items[j]])
+        }
+    } 
+    return pairs;
 }
 
 function shuffleArray(array) {
@@ -352,13 +355,23 @@ function shuffleArray(array) {
 }
 
 function initializeScores(items) {
-    scores = {}; items.forEach(item => { scores[item.id] = 0; });
+    scores = {}; 
+    items.forEach(item => { 
+        scores[item.id] = 0; 
+    });
 }
 
 function updateCards(itemLeft, itemRight) {
-    imgLeft.src = itemLeft.imageUrl; imgLeft.alt = itemLeft.title; titleLeft.textContent = itemLeft.title; descLeft.textContent = itemLeft.description || '';
-    imgRight.src = itemRight.imageUrl; imgRight.alt = itemRight.title; titleRight.textContent = itemRight.title; descRight.textContent = itemRight.description || '';
-    cardLeft.dataset.itemId = itemLeft.id; cardRight.dataset.itemId = itemRight.id;
+    imgLeft.src = itemLeft.imageUrl;
+    imgLeft.alt = itemLeft.title;
+    titleLeft.textContent = itemLeft.title;
+    descLeft.textContent = itemLeft.description || '';
+    imgRight.src = itemRight.imageUrl;
+    imgRight.alt = itemRight.title;
+    titleRight.textContent = itemRight.title;
+    descRight.textContent = itemRight.description || '';
+    cardLeft.dataset.itemId = itemLeft.id;
+    cardRight.dataset.itemId = itemRight.id;
 }
 
 function displayNextPair() {
@@ -371,11 +384,13 @@ function displayNextPair() {
 }
 
 function updateProgress() {
-    comparisonsMade++; progressText.textContent = `Choice ${comparisonsMade} of ${totalComparisons}`;
+    comparisonsMade++; 
+    progressText.textContent = `Choice ${comparisonsMade} of ${totalComparisons}`;
 }
 
 function handleChoice(event) {
-    const clickedCard = event.target.closest('.choice-card'); if (!clickedCard) return;
+    const clickedCard = event.target.closest('.choice-card'); 
+    if (!clickedCard) return;
     const chosenItemId = parseInt(clickedCard.dataset.itemId, 10);
     if (scores.hasOwnProperty(chosenItemId)) scores[chosenItemId]++;
     else console.warn(`Chosen item ID ${chosenItemId} not found in scores.`);
@@ -407,7 +422,12 @@ function displayTable(rankedItems) {
 function startRankingProcess(dataItems) {
     remainingPairs = []; currentPair = null; scores = {}; totalComparisons = 0; comparisonsMade = 0;
     initializeScores(dataItems);
-    remainingPairs = generatePairs(dataItems); shuffleArray(remainingPairs); totalComparisons = remainingPairs.length;
-    if (totalComparisons === 0) { choiceSection.innerHTML = '<p class="text-yellow-500 text-center">Not enough unique pairs to compare.</p>'; return; }
+    remainingPairs = generatePairs(dataItems);
+    shuffleArray(remainingPairs);
+    totalComparisons = remainingPairs.length;
+    if (totalComparisons === 0) { 
+        choiceSection.innerHTML = '<p class="text-yellow-500 text-center">Not enough unique pairs to compare.</p>'; 
+        return; 
+    }
     displayNextPair();
 }
