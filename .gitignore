@@ -1,4 +1,4 @@
-data/input/*
+data/input/private
 data/output/*
 assets/*
 !assets/residences/
